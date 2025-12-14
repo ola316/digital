@@ -3,6 +3,17 @@ import Image from "next/image"
 import { CalendarDays, MapPin } from "lucide-react"
 import { getEvents } from "@/lib/db/actions"
 
+function getImageUrl(url: string | null, title: string) {
+  if (!url) return `/placeholder.svg?height=160&width=320&query=${encodeURIComponent(title)}`
+  if (url.startsWith("blob:") || url.startsWith("/placeholder")) {
+    return url
+  }
+  if (url.startsWith("http")) {
+    return url
+  }
+  return `/placeholder.svg?height=160&width=320&query=${encodeURIComponent(title)}`
+}
+
 export async function EventsPreview() {
   const events = await getEvents({ upcoming: true })
   const upcoming = events.slice(0, 3)
@@ -21,7 +32,7 @@ export async function EventsPreview() {
           <Link key={e.id} href={`/events?focus=${e.id}`} className="group rounded-lg border overflow-hidden">
             <div className="relative h-40">
               <Image
-                src={e.image_url || "/placeholder.svg?height=160&width=320&query=school event"}
+                src={getImageUrl(e.image_url, e.title) || "/placeholder.svg"}
                 alt={e.title}
                 fill
                 className="object-cover group-hover:scale-[1.02] transition"

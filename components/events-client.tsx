@@ -12,6 +12,17 @@ import type { Event } from "@/lib/db/types"
 
 const categories = ["All", "Academic", "Sports", "Cultural", "Community", "General"]
 
+function getImageUrl(url: string | null, title: string) {
+  if (!url) return `/placeholder.svg?height=160&width=320&query=${encodeURIComponent(title)}`
+  if (url.startsWith("blob:") || url.startsWith("/placeholder")) {
+    return url
+  }
+  if (url.startsWith("http")) {
+    return url
+  }
+  return `/placeholder.svg?height=160&width=320&query=${encodeURIComponent(title)}`
+}
+
 interface Props {
   events: Event[]
 }
@@ -37,7 +48,7 @@ function ListView({ events, query, category }: { events: Event[]; query: string;
         <div key={e.id} className="grid md:grid-cols-[200px_1fr] gap-4 rounded-lg border overflow-hidden bg-card">
           <div className="relative h-40 md:h-full">
             <Image
-              src={e.image_url || "/placeholder.svg?height=160&width=320&query=school event"}
+              src={getImageUrl(e.image_url, e.title) || "/placeholder.svg"}
               alt={e.title}
               fill
               className="object-cover"

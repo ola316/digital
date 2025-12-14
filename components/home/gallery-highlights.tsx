@@ -2,6 +2,17 @@ import Image from "next/image"
 import Link from "next/link"
 import { getGalleryItems } from "@/lib/db/actions"
 
+function getImageUrl(url: string, title: string) {
+  if (!url) return `/placeholder.svg?height=144&width=256&query=${encodeURIComponent(title)}`
+  if (url.startsWith("blob:") || url.startsWith("/placeholder")) {
+    return url
+  }
+  if (url.startsWith("http")) {
+    return url
+  }
+  return `/placeholder.svg?height=144&width=256&query=${encodeURIComponent(title)}`
+}
+
 export async function GalleryHighlights() {
   const gallery = await getGalleryItems({ featured: true })
   const highlights = gallery.slice(0, 6)
@@ -20,7 +31,7 @@ export async function GalleryHighlights() {
           <Link key={g.id} href={`/gallery?focus=${g.id}`} className="group relative rounded-lg overflow-hidden border">
             <div className="relative h-36">
               <Image
-                src={g.image_url || "/placeholder.svg?height=144&width=256&query=school gallery"}
+                src={getImageUrl(g.image_url, g.title) || "/placeholder.svg"}
                 alt={g.title}
                 fill
                 className="object-cover group-hover:scale-[1.03] transition"

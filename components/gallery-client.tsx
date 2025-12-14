@@ -28,15 +28,29 @@ export function GalleryClient({ gallery }: Props) {
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return gallery.filter((g) => {
-      const matchQ = g.title.toLowerCase().includes(q) || g.description.toLowerCase().includes(q)
+      const matchQ = g.title.toLowerCase().includes(q) || (g.description || "").toLowerCase().includes(q)
       const matchC = category === "All" ? true : g.category === category
       const matchY = year === "All" ? true : g.year === year
-      const matchT = type === "All" ? true : g.media_type === type
+      const matchT = type === "All" ? true : g.type === type
       return matchQ && matchC && matchY && matchT
     })
   }, [gallery, query, category, year, type])
 
   const active = filtered.find((g) => g.id === activeId)
+
+  const getImageUrl = (url: string, title: string) => {
+    if (!url) return `/placeholder.svg?height=160&width=256&query=${encodeURIComponent(title)}`
+    // If it's a blob URL or placeholder, keep it
+    if (url.startsWith("blob:") || url.startsWith("/placeholder")) {
+      return url
+    }
+    // If it's a full URL (http/https), use it
+    if (url.startsWith("http")) {
+      return url
+    }
+    // Otherwise generate a placeholder
+    return `/placeholder.svg?height=160&width=256&query=${encodeURIComponent(title)}`
+  }
 
   return (
     <>
@@ -51,7 +65,7 @@ export function GalleryClient({ gallery }: Props) {
               >
                 <div className="relative h-40">
                   <Image
-                    src={g.image_url || "/placeholder.svg?height=160&width=256&query=school gallery"}
+                    src={getImageUrl(g.image_url, g.title) || "/placeholder.svg"}
                     alt={g.title}
                     fill
                     className="object-cover group-hover:scale-[1.03] transition"
@@ -132,7 +146,7 @@ export function GalleryClient({ gallery }: Props) {
             <div className="space-y-3">
               <div className="relative h-[360px] rounded-lg overflow-hidden">
                 <Image
-                  src={active.image_url || "/placeholder.svg?height=360&width=640&query=school gallery"}
+                  src={getImageUrl(active.image_url, active.title) || "/placeholder.svg"}
                   alt={active.title}
                   fill
                   className="object-cover"
