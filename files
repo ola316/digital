@@ -1,0 +1,85 @@
+// app/layout.tsx
+import type { ReactNode } from "react"
+import { ThemeProvider } from "@/components/theme-provider"
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-[100dvh] bg-background antialiased">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+
+// app/events/page.tsx
+// Assuming CalendarView component exists here
+function CalendarView({ days }) {
+  return (
+    <div>
+      {days.map((d, idx) => (
+        <div key={`day-${idx}`} className="rounded-lg border p-2 bg-white dark:bg-gray-900 aspect-square overflow-auto">
+          {/* ... */}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// components/admin/modals.tsx
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+
+function AnnouncementModal({ isEdit }) {
+  return (
+    <Dialog>
+      <DialogHeader>
+        <DialogTitle>{isEdit ? "Edit" : "Create"} Announcement</DialogTitle>
+        <DialogDescription>Fill out the announcement details and click Save. You can change these later.</DialogDescription>
+      </DialogHeader>
+      <DialogContent>
+        {/* ... */}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EventModal({ isEdit }) {
+  return (
+    <Dialog>
+      <DialogHeader>
+        <DialogTitle>{isEdit ? "Edit" : "Create"} Event</DialogTitle>
+        <DialogDescription>Provide the event information below. Use a future date to show in Upcoming.</DialogDescription>
+      </DialogHeader>
+      <DialogContent>
+        {/* ... */}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function GalleryModal({ isEdit }) {
+  return (
+    <Dialog>
+      <DialogHeader>
+        <DialogTitle>{isEdit ? "Edit" : "Add"} Gallery Item</DialogTitle>
+        <DialogDescription>Include a title and image URL. Mark as featured to highlight on the homepage.</DialogDescription>
+      </DialogHeader>
+      <DialogContent>
+        {/* ... */}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// app/gallery/page.tsx
+function LightboxDialog({ image }) {
+  return (
+    <Dialog>
+      <DialogContent className="max-w-3xl" aria-describedby={undefined}>
+        {/* ... */}
+      </DialogContent>
+    </Dialog>
+  )
+}
