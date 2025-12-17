@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AnnouncementModal, EventModal, GalleryModal, useModal } from "@/components/admin/modals"
-import { Plus, Megaphone, CalendarDays, Camera, Trash2, RefreshCw } from "lucide-react"
+import { Plus, Megaphone, CalendarDays, Camera, Trash2, RefreshCw, Mail, Eye, CheckCircle } from "lucide-react"
 import { getAdminSession, logoutAdmin } from "@/lib/db/auth"
 import {
   getAnnouncements,
@@ -19,7 +19,14 @@ import {
   updateEvent,
   updateGalleryItem,
 } from "@/lib/db/actions"
+import {
+  getContactMessages,
+  markMessageAsRead,
+  deleteContactMessages,
+  type ContactMessage,
+} from "@/lib/db/contact-actions"
 import type { Announcement, Event, GalleryItem, ActivityLog, AdminUser } from "@/lib/db/types"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -31,6 +38,9 @@ export default function AdminDashboardPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [gallery, setGallery] = useState<GalleryItem[]>([])
   const [activity, setActivity] = useState<ActivityLog[]>([])
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([])
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null)
+  const [selectedMsgs, setSelectedMsgs] = useState<number[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const annModal = useModal()
@@ -43,16 +53,18 @@ export default function AdminDashboardPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [anns, evts, gals, acts] = await Promise.all([
+      const [anns, evts, gals, acts, msgs] = await Promise.all([
         getAnnouncements(),
         getEvents(),
         getGalleryItems(),
         getActivityLog(50),
+        getContactMessages(),
       ])
       setAnnouncements(anns)
       setEvents(evts)
       setGallery(gals)
       setActivity(acts)
+      setContactMessages(msgs)
     } catch (error) {
       console.error("Failed to load data:", error)
     }
@@ -96,6 +108,10 @@ export default function AdminDashboardPage() {
     setSelectedGals((prev) => (checked ? [...prev, id] : prev.filter((selectedId) => selectedId !== id)))
   }
 
+  const handleMessageCheck = (id: number, checked: boolean) => {
+    setSelectedMsgs((prev) => (checked ? [...prev, id] : prev.filter((selectedId) => selectedId !== id)))
+  }
+
   // Delete handlers
   const handleDeleteAnnouncements = async () => {
     await deleteAnnouncements(selectedAnns)
@@ -113,6 +129,20 @@ export default function AdminDashboardPage() {
     await deleteGalleryItems(selectedGals)
     setSelectedGals([])
     await loadData()
+  }
+
+  const handleDeleteMessages = async () => {
+    await deleteContactMessages(selectedMsgs)
+    setSelectedMsgs([])
+    await loadData()
+  }
+
+  const handleViewMessage = async (msg: ContactMessage) => {
+    setSelectedMessage(msg)
+    if (!msg.is_read) {
+      await markMessageAsRead(msg.id)
+      await loadData()
+    }
   }
 
   // Toggle handlers
@@ -136,15 +166,14 @@ export default function AdminDashboardPage() {
     await loadData()
   }
 
-  // Stats
+  // Stats - Added unread messages count
+  const unreadMessages = contactMessages.filter((m) => !m.is_read).length
   const stats = {
     announcements: announcements.length,
     events: events.length,
     gallery: gallery.length,
-    featured:
-      announcements.filter((a) => a.featured).length +
-      events.filter((e) => e.featured).length +
-      gallery.filter((g) => g.featured).length,
+    messages: contactMessages.length,
+    unreadMessages,
   }
 
   if (isLoading) {
@@ -158,7 +187,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-emerald-50 via-white to-emerald-50 dark:from-gray-950 dark:via-gray-950 dark:to-emerald-950">
       <main className="py-10">
-        <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 space-y-10">
+        <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-10">
           <header className="text-center space-y-3">
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-400 dark:from-emerald-300 dark:to-emerald-500 bg-clip-text text-transparent">
               Admin Dashboard
@@ -180,38 +209,118 @@ export default function AdminDashboardPage() {
             </div>
           </header>
 
-          {/* Stats Cards */}
-          <section className="grid md:grid-cols-4 gap-4">
+          {/* Stats Cards - Added messages card */}
+          <section className="grid md:grid-cols-5 gap-4">
             <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-              <CardHeader>
-                <CardTitle className="text-sm text-muted-foreground">Total Announcements</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Announcements</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold text-emerald-700 dark:text-emerald-300">{stats.announcements}</p>
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.announcements}</p>
               </CardContent>
             </Card>
             <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-              <CardHeader>
-                <CardTitle className="text-sm text-muted-foreground">Total Events</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Events</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold text-emerald-700 dark:text-emerald-300">{stats.events}</p>
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.events}</p>
               </CardContent>
             </Card>
             <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-              <CardHeader>
-                <CardTitle className="text-sm text-muted-foreground">Gallery Items</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Gallery</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold text-emerald-700 dark:text-emerald-300">{stats.gallery}</p>
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.gallery}</p>
               </CardContent>
             </Card>
             <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-              <CardHeader>
-                <CardTitle className="text-sm text-muted-foreground">Featured</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Messages</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold text-emerald-700 dark:text-emerald-300">{stats.featured}</p>
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.messages}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/70 dark:bg-gray-900/60 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Unread</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.unreadMessages}</p>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section>
+            <Card className="border-emerald-100 dark:border-emerald-900/40 bg-white/80 dark:bg-gray-900/70 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                  Contact Messages
+                  {unreadMessages > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200">
+                      {unreadMessages} unread
+                    </span>
+                  )}
+                </CardTitle>
+                <Button variant="outline" disabled={selectedMsgs.length === 0} onClick={handleDeleteMessages}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete selected ({selectedMsgs.length})
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-80 overflow-auto pr-2">
+                  {contactMessages.map((msg) => (
+                    <div
+                      key={`message-${msg.id}`}
+                      className={`flex items-start gap-3 rounded-md border p-3 transition cursor-pointer ${
+                        msg.is_read
+                          ? "hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20"
+                          : "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/40 hover:bg-orange-100/60 dark:hover:bg-orange-900/20"
+                      }`}
+                      onClick={() => handleViewMessage(msg)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMsgs.includes(msg.id)}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          handleMessageCheck(msg.id, e.target.checked)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1"
+                        aria-label={`Select message from ${msg.full_name}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium ${!msg.is_read ? "text-foreground" : "text-muted-foreground"}`}>
+                            {msg.full_name}
+                          </p>
+                          {!msg.is_read && <span className="w-2 h-2 rounded-full bg-orange-500" title="Unread" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{msg.email}</p>
+                        <p className="text-sm text-muted-foreground truncate mt-1">{msg.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(msg.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleViewMessage(msg)
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {contactMessages.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No messages yet</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </section>
@@ -488,6 +597,47 @@ export default function AdminDashboardPage() {
       <AnnouncementModal open={annModal.open} setOpen={annModal.setOpen} onDone={loadData} />
       <EventModal open={evtModal.open} setOpen={evtModal.setOpen} onDone={loadData} />
       <GalleryModal open={galModal.open} setOpen={galModal.setOpen} onDone={loadData} />
+
+      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-emerald-600" />
+              Message from {selectedMessage?.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              Received on {selectedMessage ? new Date(selectedMessage.created_at).toLocaleString() : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMessage && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">From</p>
+                <p className="text-foreground">{selectedMessage.full_name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Email</p>
+                <a href={`mailto:${selectedMessage.email}`} className="text-emerald-600 hover:underline">
+                  {selectedMessage.email}
+                </a>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Message</p>
+                <p className="text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-md">
+                  {selectedMessage.message}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                {selectedMessage.is_read && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" /> Read
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
