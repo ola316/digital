@@ -30,7 +30,7 @@ export default function AboutPage() {
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-12">
           <section className="grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">About Oakwood Academy</h1>
+              <h1 className="text-3xl font-bold tracking-tight">About Nowzer School</h1>
               <p className="mt-4 text-muted-foreground">
                 Nowzer has been a beacon of academic excellence and character development. Our
                 students thrive in a supportive community that celebrates diversity, creativity, and leadership.
