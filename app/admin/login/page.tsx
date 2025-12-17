@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { loginAdmin } from "@/lib/db/auth"
+import { Lock } from "lucide-react"
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -44,26 +45,23 @@ export default function AdminLoginPage() {
               onSubmit={onSubmit}
               className="w-full max-w-md rounded-xl border p-6 bg-white dark:bg-gray-900 shadow-sm"
             >
-              <h1 className="text-2xl font-semibold text-center">Admin Login</h1>
-              <div className="mt-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300 text-center font-medium">
-                  Default Credentials:
-                </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 text-center mt-1">
-                  Email: <span className="font-mono font-bold">admin@oakwood.edu</span>
-                </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 text-center">
-                  Password: <span className="font-mono font-bold">admin123</span>
+              <div className="flex flex-col items-center gap-2 mb-6">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h1 className="text-2xl font-semibold text-center">Admin Login</h1>
+                <p className="text-sm text-muted-foreground text-center">
+                  Enter your credentials to access the dashboard
                 </p>
               </div>
-              <div className="mt-6 space-y-4">
+              <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Email</label>
                   <Input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="admin@oakwood.edu"
+                    placeholder="Enter your email"
                     autoFocus
                     disabled={isSubmitting}
                   />
@@ -74,7 +72,7 @@ export default function AdminLoginPage() {
                     type="password"
                     value={form.password}
                     onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="admin123"
+                    placeholder="Enter your password"
                     disabled={isSubmitting}
                   />
                 </div>
