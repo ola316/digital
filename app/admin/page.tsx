@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AnnouncementModal, EventModal, GalleryModal, useModal } from "@/components/admin/modals"
-import { Plus, Megaphone, CalendarDays, Camera, Trash2, RefreshCw, Mail, Eye, CheckCircle } from "lucide-react"
-import { getAdminSession, logoutAdmin } from "@/lib/db/auth"
+import { Plus, Megaphone, CalendarDays, Camera, Trash2, RefreshCw, Mail, Eye, Key } from "lucide-react"
+import { getAdminSession, logoutAdmin, changeAdminPassword } from "@/lib/db/auth"
 import {
   getAnnouncements,
   getEvents,
@@ -27,6 +27,8 @@ import {
 } from "@/lib/db/contact-actions"
 import type { Announcement, Event, GalleryItem, ActivityLog, AdminUser } from "@/lib/db/types"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -42,6 +44,15 @@ export default function AdminDashboardPage() {
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null)
   const [selectedMsgs, setSelectedMsgs] = useState<number[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   const annModal = useModal()
   const evtModal = useModal()
@@ -93,6 +104,44 @@ export default function AdminDashboardPage() {
   const handleLogout = async () => {
     await logoutAdmin()
     router.replace("/admin/login")
+  }
+
+  // Password change handler
+  const handleChangePassword = async () => {
+    setPasswordError("")
+    setPasswordSuccess(false)
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All fields are required")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match")
+      return
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters")
+      return
+    }
+
+    setIsChangingPassword(true)
+    const result = await changeAdminPassword(currentPassword, newPassword)
+    setIsChangingPassword(false)
+
+    if (result.success) {
+      setPasswordSuccess(true)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setTimeout(() => {
+        setShowPasswordModal(false)
+        setPasswordSuccess(false)
+      }, 2000)
+    } else {
+      setPasswordError(result.error || "Failed to change password")
+    }
   }
 
   // Selection handlers
@@ -195,13 +244,17 @@ export default function AdminDashboardPage() {
             <p className="text-sm text-muted-foreground">
               Welcome, {user?.name || user?.email} | Manage content and site settings
             </p>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" onClick={() => router.push("/")}>
                 Back to site
               </Button>
               <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
                 Refresh
+              </Button>
+              <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
+                <Key className="h-4 w-4 mr-2" />
+                Change Password
               </Button>
               <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleLogout}>
                 Sign out
@@ -598,44 +651,100 @@ export default function AdminDashboardPage() {
       <EventModal open={evtModal.open} setOpen={evtModal.setOpen} onDone={loadData} />
       <GalleryModal open={galModal.open} setOpen={galModal.setOpen} onDone={loadData} />
 
-      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-lg">
+      {/* Message View Modal */}
+      <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-emerald-600" />
-              Message from {selectedMessage?.full_name}
-            </DialogTitle>
+            <DialogTitle>Message from {selectedMessage?.full_name}</DialogTitle>
             <DialogDescription>
-              Received on {selectedMessage ? new Date(selectedMessage.created_at).toLocaleString() : ""}
+              Received {selectedMessage && new Date(selectedMessage.created_at).toLocaleString()}
             </DialogDescription>
           </DialogHeader>
-          {selectedMessage && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">From</p>
-                <p className="text-foreground">{selectedMessage.full_name}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <a href={`mailto:${selectedMessage.email}`} className="text-emerald-600 hover:underline">
-                  {selectedMessage.email}
-                </a>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Message</p>
-                <p className="text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-md">
-                  {selectedMessage.message}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 pt-2">
-                {selectedMessage.is_read && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" /> Read
-                  </span>
-                )}
-              </div>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Email</p>
+              <p className="font-medium">{selectedMessage?.email}</p>
             </div>
-          )}
+            <div>
+              <p className="text-sm text-muted-foreground">Message</p>
+              <p className="whitespace-pre-wrap">{selectedMessage?.message}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Change Modal */}
+      <Dialog
+        open={showPasswordModal}
+        onOpenChange={(open) => {
+          setShowPasswordModal(open)
+          if (!open) {
+            setCurrentPassword("")
+            setNewPassword("")
+            setConfirmPassword("")
+            setPasswordError("")
+            setPasswordSuccess(false)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter your current password and choose a new secure password (at least 8 characters).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {passwordSuccess ? (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-3">
+                  <Key className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+                </div>
+                <p className="text-emerald-600 dark:text-emerald-300 font-medium">Password changed successfully!</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 8 characters)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                {passwordError && <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>}
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {isChangingPassword ? "Changing..." : "Change Password"}
+                </Button>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

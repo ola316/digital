@@ -14,8 +14,6 @@ export async function loginAdmin(
   try {
     const supabase = getDbClient()
 
-    console.log("[v0] Attempting login for:", email)
-
     // Get admin user by email
     const { data: user, error } = await supabase
       .from("admin_users")
@@ -23,10 +21,7 @@ export async function loginAdmin(
       .eq("email", email.toLowerCase())
       .single()
 
-    console.log("[v0] Query result:", { user: user?.email, error: error?.message })
-
     if (error || !user) {
-      console.log("[v0] User not found or error:", error?.message)
       return { success: false, error: "Invalid email or password" }
     }
 
@@ -35,14 +30,11 @@ export async function loginAdmin(
     // First try plain text comparison (for testing/development)
     if (password === user.password_hash) {
       isValidPassword = true
-      console.log("[v0] Plain text password match")
     } else {
       // Try bcrypt comparison (for production hashed passwords)
       try {
         isValidPassword = await bcrypt.compare(password, user.password_hash)
-        console.log("[v0] Bcrypt password valid:", isValidPassword)
       } catch (bcryptError) {
-        console.log("[v0] Bcrypt compare failed, not a valid hash")
         isValidPassword = false
       }
     }
@@ -82,8 +74,6 @@ export async function loginAdmin(
       user_email: user.email,
     })
 
-    console.log("[v0] Login successful for:", user.email)
-
     return {
       success: true,
       user: {
@@ -96,7 +86,6 @@ export async function loginAdmin(
       },
     }
   } catch (err) {
-    console.log("[v0] Login error:", err)
     return { success: false, error: "An error occurred during login" }
   }
 }
@@ -179,4 +168,78 @@ export async function createAdminUser(
   }
 
   return { success: true }
+}
+
+export async function changeAdminPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cookieStore = await cookies()
+    const session = cookieStore.get(SESSION_COOKIE)
+
+    if (!session) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    const sessionData = JSON.parse(session.value)
+    const supabase = getDbClient()
+
+    // Get current user
+    const { data: user, error } = await supabase.from("admin_users").select("*").eq("id", sessionData.userId).single()
+
+    if (error || !user) {
+      return { success: false, error: "User not found" }
+    }
+
+    // Verify current password
+    let isValidPassword = false
+    if (currentPassword === user.password_hash) {
+      isValidPassword = true
+    } else {
+      try {
+        isValidPassword = await bcrypt.compare(currentPassword, user.password_hash)
+      } catch {
+        isValidPassword = false
+      }
+    }
+
+    if (!isValidPassword) {
+      return { success: false, error: "Current password is incorrect" }
+    }
+
+    // Validate new password
+    if (newPassword.length < 8) {
+      return { success: false, error: "New password must be at least 8 characters" }
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+    // Update password
+    const { error: updateError } = await supabase
+      .from("admin_users")
+      .update({
+        password_hash: newPasswordHash,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id)
+
+    if (updateError) {
+      return { success: false, error: "Failed to update password" }
+    }
+
+    // Log activity
+    await supabase.from("activity_log").insert({
+      action_type: "auth",
+      action: "password_change",
+      message: `Admin changed password: ${user.email}`,
+      user_id: user.id,
+      user_email: user.email,
+    })
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: "An error occurred" }
+  }
 }
