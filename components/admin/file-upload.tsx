@@ -30,19 +30,26 @@ export function FileUpload({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const validateFile = (file: File): string | null => {
-    // Check file type
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"]
     if (!allowedTypes.includes(file.type)) {
       return "Invalid file type. Only JPG, PNG, GIF, and WebP images are allowed."
     }
 
-    // Check file size (1MB max)
     const maxSize = 1 * 1024 * 1024 // 1MB
     if (file.size > maxSize) {
       return `File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 1MB.`
     }
 
     return null
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = (error) => reject(error)
+    })
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +59,6 @@ export function FileUpload({
     setError(null)
     setSuccess(false)
 
-    // Validate file before upload
     const validationError = validateFile(file)
     if (validationError) {
       setError(validationError)
@@ -62,22 +68,22 @@ export function FileUpload({
       return
     }
 
-    // Create preview
     const blobUrl = URL.createObjectURL(file)
     setPreview(blobUrl)
 
-    // Upload to Supabase Storage
     setIsUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      const base64 = await fileToBase64(file)
 
-      const result = await uploadImage(formData)
+      const result = await uploadImage({
+        base64,
+        fileName: file.name,
+        mimeType: file.type,
+      })
 
       if (result.success && result.url) {
         onChange(result.url)
         setSuccess(true)
-        // Clear success message after 3 seconds
         setTimeout(() => setSuccess(false), 3000)
       } else {
         setError(result.error || "Failed to upload image")
@@ -113,7 +119,6 @@ export function FileUpload({
     }
   }
 
-  // Determine which image to show in preview
   const previewImage = preview || (value && (value.startsWith("http") || value.startsWith("/")))
 
   return (
@@ -153,12 +158,10 @@ export function FileUpload({
         )}
       </div>
 
-      {/* File type hint */}
       <p className="text-xs text-muted-foreground">Accepted formats: JPG, PNG, GIF, WebP. Max size: 1MB</p>
 
       <input ref={fileInputRef} type="file" accept={accept} onChange={handleFileSelect} className="hidden" />
 
-      {/* Error message */}
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-500 dark:text-red-400">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -166,7 +169,6 @@ export function FileUpload({
         </div>
       )}
 
-      {/* Success message */}
       {success && (
         <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
           <CheckCircle className="h-4 w-4 shrink-0" />
@@ -174,7 +176,6 @@ export function FileUpload({
         </div>
       )}
 
-      {/* Image preview */}
       {previewImage && (
         <div className="mt-2 relative">
           <img
@@ -182,7 +183,6 @@ export function FileUpload({
             alt="Preview"
             className="h-32 w-32 object-cover rounded-lg border shadow-sm"
             onError={(e) => {
-              // If image fails to load, show placeholder
               ;(e.target as HTMLImageElement).src = "/abstract-colorful-swirls.png"
             }}
           />

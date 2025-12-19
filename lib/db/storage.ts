@@ -19,26 +19,34 @@ function getStorageClient() {
   })
 }
 
-export async function uploadImage(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+export async function uploadImage(data: {
+  base64: string
+  fileName: string
+  mimeType: string
+}): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
-    const file = formData.get("file") as File
+    const { base64, fileName, mimeType } = data
 
-    if (!file) {
+    if (!base64) {
       return { success: false, error: "No file provided" }
     }
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"]
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.includes(mimeType)) {
       return {
         success: false,
         error: "Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.",
       }
     }
 
+    // Decode base64 to buffer
+    const base64Data = base64.split(",")[1] || base64
+    const buffer = Buffer.from(base64Data, "base64")
+
     // Validate file size (1MB max)
     const maxSize = 1 * 1024 * 1024 // 1MB
-    if (file.size > maxSize) {
+    if (buffer.length > maxSize) {
       return {
         success: false,
         error: "File too large. Maximum size is 1MB.",
@@ -48,23 +56,19 @@ export async function uploadImage(formData: FormData): Promise<{ success: boolea
     const supabase = getStorageClient()
 
     // Generate unique filename
-    const fileExtension = file.name.split(".").pop()?.toLowerCase() || "jpg"
+    const fileExtension = fileName.split(".").pop()?.toLowerCase() || "jpg"
     const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExtension}`
     const filePath = `uploads/${uniqueName}`
 
-    // Convert File to ArrayBuffer then to Uint8Array for upload
-    const arrayBuffer = await file.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
-
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage.from("images").upload(filePath, uint8Array, {
-      contentType: file.type,
+    const { data: uploadData, error } = await supabase.storage.from("images").upload(filePath, buffer, {
+      contentType: mimeType,
       cacheControl: "3600",
       upsert: false,
     })
 
     if (error) {
-      console.error("[v0] Storage upload error:", error)
+      console.log("[v0] Storage upload error:", error.message)
       return { success: false, error: error.message }
     }
 
@@ -73,7 +77,7 @@ export async function uploadImage(formData: FormData): Promise<{ success: boolea
 
     return { success: true, url: urlData.publicUrl }
   } catch (error) {
-    console.error("[v0] Upload error:", error)
+    console.log("[v0] Upload error:", error instanceof Error ? error.message : "Unknown error")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to upload image",
@@ -96,13 +100,13 @@ export async function deleteImage(imageUrl: string): Promise<{ success: boolean;
     const { error } = await supabase.storage.from("images").remove([filePath])
 
     if (error) {
-      console.error("[v0] Storage delete error:", error)
+      console.log("[v0] Storage delete error:", error.message)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (error) {
-    console.error("[v0] Delete error:", error)
+    console.log("[v0] Delete error:", error instanceof Error ? error.message : "Unknown error")
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete image",
