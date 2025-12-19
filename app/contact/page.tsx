@@ -221,14 +221,19 @@ export default function ContactPage() {
               </Card>
 
               {/* Map Placeholder */}
-              <Card className="shadow-lg border-0 bg-card overflow-hidden">
-                <div className="h-48 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Interactive Map</p>
-                  </div>
-                </div>
-              </Card>
+    <Card className="shadow-lg border-0 bg-card overflow-hidden">
+  <div className="h-48 bg-emerald-50 dark:bg-emerald-900/20">
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3945.313744003392!2d39.2695423!3d8.5658!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x164b214931a72305%3A0xf5a7f0f91176726c!2sNowzer%20school%20plc!5e0!3m2!1sen!2set!4v1766165521064!5m2!1sen!2set"
+      className="w-full h-full border-0"
+      allowFullScreen
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+    />
+  </div>
+</Card>
+
+
 
               {/* Social Media */}
               <Card className="shadow-lg border-0 bg-card">
