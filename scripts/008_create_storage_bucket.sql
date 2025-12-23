@@ -1,5 +1,5 @@
 -- Create storage bucket for images
-/*INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'images',
   'images',
@@ -28,4 +28,4 @@ WITH CHECK (bucket_id = 'images');
 -- Allow service role to delete images
 CREATE POLICY "Service role can delete images"
 ON storage.objects FOR DELETE
-USING (bucket_id = 'images');*\
+USING (bucket_id = 'images');
