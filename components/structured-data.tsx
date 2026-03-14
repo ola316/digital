@@ -1,3 +1,5 @@
+'use server'
+
 export function SchemaOrgJSON() {
   const schemaData = {
     "@context": "https://schema.org",
@@ -24,7 +26,6 @@ export function SchemaOrgJSON() {
       dangerouslySetInnerHTML={{
         __html: JSON.stringify(schemaData),
       }}
-      suppressHydrationWarning
     />
   )
 }
