@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { SchemaOrgJSON } from "@/components/structured-data"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -87,29 +88,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "EducationalOrganization",
-              name: "Oakwood Academy",
-              description:
-                "A premier educational institution dedicated to inspiring excellence and nurturing character.",
-              address: {
-                "@type": "PostalAddress",
-                streetAddress: "123 Education Lane",
-                addressLocality: "Springfield",
-                addressRegion: "State",
-                postalCode: "12345",
-                addressCountry: "US",
-              },
-              telephone: "+1-555-123-4567",
-              email: "info@oakwoodacademy.edu",
-              sameAs: [],
-            }),
-          }}
-        />
+        <SchemaOrgJSON />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
